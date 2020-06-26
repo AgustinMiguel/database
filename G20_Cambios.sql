@@ -17,7 +17,8 @@ INSERT INTO GR20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_co
 INSERT INTO GR20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_com)VALUES (1,1,'2020-06-19 18:35:00',NULL);
 INSERT INTO GR20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario)VALUES (0,0,0,'2020-06-19 18:35:00','C-AM-DOTA');
 INSERT INTO GR20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario)VALUES (0,0,1,'2020-08-19 18:36:00','C-AM-DOTA');
-INSERT INTO GR20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario)VALUES (0,0,2,'2020-06-19 18:35:00','C-AM-DOTA');
+INSERT INTO GR20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario)VALUES (0,0,2,'2022-06-19 18:35:00','C-AM-DOTA');
+INSERT INTO GR20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario)VALUES (0,0,3,'2022-07-19 00:00:00','C-AM-DOTA');
 INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (0,'aa',0,0);
 INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (1,'aa',0,1);
 INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (2,'aa',0,0);
@@ -26,6 +27,10 @@ INSERT INTO GR20_voto(id_voto, valor_voto, id_usuario, id_juego)  VALUES (0,1,0,
 INSERT INTO GR20_voto(id_voto, valor_voto, id_usuario, id_juego)  VALUES (1,1,1,0);
 INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (2,'aa',1,0);
 INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (3,'aa',0,0);
+
+SELECT * FROM gr20_comentario;
+SELECT * FROM gr20_comenta;
+UPDATE gr20_comentario SET fecha_comentario = '2088-08-19 18:36:00' WHERE id_comentario = 1;
 
 
 --RESTRICCIONES
@@ -101,7 +106,7 @@ DECLARE contador integer;
 
 --d)
 
-CREATE TRIGGER TR_GR20_GR20_GR20_comentar_sin_jugar
+CREATE TRIGGER TR_GR20_GR20_GR20_comenta_comentar_sin_jugar
     BEFORE INSERT OR UPDATE OF id_juego, id_usuario
     ON gr20_comenta
     FOR EACH ROW
@@ -126,32 +131,57 @@ CREATE OR REPLACE FUNCTION TRFN_GR20_sincro_comenta_comentario()
 RETURNS TRIGGER AS $body$
     DECLARE  contador integer;
         BEGIN
-        IF (TG_OP='INSERT') THEN
-            SELECT COUNT(*)INTO contador FROM gr20_comentario c WHERE NEW.id_usuario = c.id_usuario;
-                IF(contador =0) THEN
-                    INSERT INTO GR20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_com)VALUES (NEW.id_usuario, NEW.id_juego,NEW.fecha_comentario, null);
-                    RETURN NEW;
-                END IF;
-                IF(contador >= 1) THEN
-                    UPDATE GR20_comenta c SET(c.fecha_ultimo_com = NEW.fecha_ultimo_com) WHERE c.id_usuario = NEW.id_usuario AND c.id_juego = NEW.id_juego;
-                    RETURN NEW;
-                END IF;
-        END IF;
-        IF (TG_OP='DELETE') THEN
-            RETUNR OLD;                               --CONSULTAR LA TABLA DE COMENTARIOS TRAER LAS FECHAS ORDENADAS DE MAYOR A MENOR Y AGARRAR SOLO 1 (LIMIT 1) CREAR NUEVO TRIGGER EN AFTER POR QUE SINO VIOLA LA FK
-        END IF;
+            IF (TG_OP='INSERT') THEN
+                SELECT COUNT(*)INTO contador FROM gr20_comenta c WHERE NEW.id_usuario = c.id_usuario AND NEW.id_juego = c.id_juego;
+                    IF(contador =0) THEN
+                        INSERT INTO GR20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_com)VALUES (NEW.id_usuario, NEW.id_juego,NEW.fecha_comentario, null);
+                        RETURN NEW;
+                    END IF;
+                    IF(contador >= 1) THEN
+                        UPDATE GR20_comenta c SET fecha_ultimo_com = NEW.fecha_comentario WHERE c.id_usuario = NEW.id_usuario AND c.id_juego = NEW.id_juego;
+                        RETURN NEW;
+                    END IF;
+            END IF;
+
     END$body$
     LANGUAGE 'plpgsql';
 
 
-
-
-
-CREATE TRIGGER TR_GR20_GR20_GR20_sincro_comenta_comentario
-    BEFORE INSERT OR DELETE OR UPDATE OF id_juego, id_usuario
+CREATE TRIGGER TR_GR20_GR20_GR20_comentario_sincro_comenta_comentario
+    BEFORE INSERT OR UPDATE OF id_juego, id_usuario
     ON gr20_comentario
     FOR EACH ROW
     EXECUTE PROCEDURE TRFN_GR20_sincro_comenta_comentario();
+
+
+
+
+CREATE OR REPLACE FUNCTION TRFN_GR20_sincro_comenta_comentario_after()
+RETURNS TRIGGER AS $body$
+    DECLARE  fecha timestamp;
+        BEGIN
+        IF (TG_OP='DELETE') THEN
+            SELECT fecha_comentario INTO fecha FROM gr20_comentario c WHERE OLD.id_usuario = c.id_usuario and OLD.id_juego = c.id_juego ORDER BY fecha_comentario DESC LIMIT 1;
+            UPDATE GR20_comenta c SET fecha_ultimo_com = fecha WHERE c.id_usuario = OLD.id_usuario AND c.id_juego = OLD.id_juego;
+            RETURN OLD;
+        END IF;
+        IF(TG_OP = 'UPDATE') THEN
+                SELECT fecha_comentario INTO fecha FROM gr20_comentario ORDER BY fecha_comentario DESC LIMIT 1;
+                UPDATE GR20_comenta  SET fecha_ultimo_com = fecha WHERE id_usuario = NEW.id_usuario AND id_juego = NEW.id_juego;
+                RETURN NEW;
+            END IF;
+    END$body$
+    LANGUAGE 'plpgsql';
+
+
+CREATE TRIGGER TR_GR20_GR20_GR20_comentario_sincro_comenta_comentario_after
+    AFTER DELETE or UPDATE OF id_juego, id_usuario, fecha_comentario
+    ON gr20_comentario
+    FOR EACH ROW
+    EXECUTE PROCEDURE TRFN_GR20_sincro_comenta_comentario_after();
+
+
+
 
 --VISTAS
 --4)
