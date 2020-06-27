@@ -1,39 +1,4 @@
 --SCRIPT CAMBIOS
-INSERT INTO GR20_tipo_usuario(id_tipo_usuario, descripcion)VALUES(0,'aa');
-INSERT INTO GR20_usuario(id_usuario, apellido, nombre, email, id_tipo_usuario, password)VALUES (0,'miguel','agustin','aa',0,0);
-INSERT INTO GR20_usuario(id_usuario, apellido, nombre, email, id_tipo_usuario, password)VALUES (1,'enrrique','manterola','bb',0,0);
-INSERT INTO GR20_usuario(id_usuario, apellido, nombre, email, id_tipo_usuario, password)VALUES (2,'fulano','detal','bb',0,0);
-INSERT INTO GR20_usuario(id_usuario, apellido, nombre, email, id_tipo_usuario, password)VALUES (3,'fulanito','detal','bb',0,0);
-INSERT INTO GR20_nivel(id_nivel_juego, descripcion)VALUES (0,'Facil');
-INSERT INTO GR20_categoria(id_categoria, descripcion, id_nivel_juego)VALUES (0,'juego',0);
-INSERT INTO GR20_juego(id_juego, nombre_juego, descripcion_juego, id_categoria)VALUES(0,'DOTA','moba',0);
-INSERT INTO GR20_juego(id_juego, nombre_juego, descripcion_juego, id_categoria)VALUES(1,'CS','shooter',0)
-INSERT INTO GR20_juega(finalizado, id_usuario, id_juego) VALUES (false,0,0);
-INSERT INTO GR20_juega(finalizado, id_usuario, id_juego) VALUES (false,0,1);
-INSERT INTO GR20_juega(finalizado, id_usuario, id_juego) VALUES (false,1,0);
-INSERT INTO GR20_juega(finalizado, id_usuario, id_juego) VALUES (false,1,1);
-INSERT INTO GR20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_com)VALUES (0,0,'2020-06-19 18:35:00',NULL);
-INSERT INTO GR20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_com)VALUES (0,1,'2020-06-19 18:35:00',NULL);
-INSERT INTO GR20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_com)VALUES (1,1,'2020-06-19 18:35:00',NULL);
-INSERT INTO GR20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario)VALUES (0,0,0,'2020-06-19 18:35:00','C-AM-DOTA');
-INSERT INTO GR20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario)VALUES (0,0,1,'2020-08-19 18:36:00','C-AM-DOTA');
-INSERT INTO GR20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario)VALUES (0,0,2,'2022-06-19 18:35:00','C-AM-DOTA');
-INSERT INTO GR20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario)VALUES (0,0,3,'2022-07-19 00:00:00','C-AM-DOTA');
-INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (0,'aa',0,0);
-INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (1,'aa',0,1);
-INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (2,'aa',0,0);
-INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (0,'aa',0,0);
-INSERT INTO GR20_voto(id_voto, valor_voto, id_usuario, id_juego)  VALUES (0,1,0,0);
-INSERT INTO GR20_voto(id_voto, valor_voto, id_usuario, id_juego)  VALUES (1,1,1,0);
-INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (2,'aa',1,0);
-INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (3,'aa',0,0);
-
-SELECT * FROM gr20_comentario;
-SELECT * FROM gr20_comenta;
-UPDATE gr20_comentario SET fecha_comentario = '2088-08-19 18:36:00' WHERE id_comentario = 1;
-
-
---RESTRICCIONES
 --1)
 --a)
 ALTER TABLE GR20_comenta ADD CONSTRAINT ck_g20_fecha_menor check(
@@ -96,7 +61,7 @@ DECLARE contador integer;
     BEGIN
         SELECT COUNT(*) INTO contador FROM gr20_recomendacion r WHERE NOT EXISTS (
             SELECT 1 FROM gr20_voto v WHERE new.id_usuario = v.id_usuario and new.id_juego = v.id_juego);
-        IF(contador>0) THEN
+        IF(contador>=1) THEN
             RAISE EXCEPTION 'No podes recomendar sin votar';
         END IF;
         return new;
@@ -207,14 +172,3 @@ GROUP BY (V.id_juego,j.id_juego) HAVING count(DISTINCT id_voto) > 5 ORDER BY val
 SELECT * FROM GR20_top_juegos;
 
 --FIN
-
---CONSULTAS PARA HENRRY xd
-
-SELECT j.*, SUM(v.valor_voto) FROM GR20_JUEGO j JOIN GR20_VOTO v ON (j.id_juego = v.id_juego)
-    GROUP BY (V.id_juego,j.id_juego) ORDER BY SUM(v.valor_voto) DESC ;
-
-SELECT j.*, COUNT(v.id_voto) FROM GR20_JUEGO j JOIN GR20_VOTO v ON (j.id_juego = v.id_juego)
-    GROUP BY (V.id_juego,j.id_juego) ORDER BY COUNT(v.id_voto) DESC ;
-
---LA OTRA CONSULA SE HACE DESDE MVC, LE DAMOS EL USUARIO Y HACEMOS 3 CONSULTAS, UNA QUE TRAE TODOS LOS DATOS DEL USUARIO, LA OTRA CUENTA LA CANTIDAD DE VOTOS Y LA CANTIDAD DE JUEGOS
-
