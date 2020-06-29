@@ -1,31 +1,22 @@
 --SCRIPT CAMBIOS
 --1)
 --a)
-ALTER TABLE GR20_comenta ADD CONSTRAINT ck_g20_fecha_menor check(
-	fecha_primer_com < fecha_ultimo_com and fecha_ultimo_com is not null or fecha_ultimo_com is null);
-INSERT INTO GR20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_com)VALUES (0,0,'2020-06-19 18:35:00','2018-06-19 18:35:00');--test restriccion
+    ALTER TABLE GR20_comenta ADD CONSTRAINT ck_g20_fecha_menor check(
+        fecha_primer_com < fecha_ultimo_com and fecha_ultimo_com is not null or fecha_ultimo_com is null);
 --b)
-ALTER TABLE GR20_comentario ADD CONSTRAINT ck_g20_comentario_por_dia CHECK NOT EXISTS(                                   --Chequea que un usuario solo pueda hacer un solo comentario por dia
-    SELECT c.id_usuario FROM GR20_comentario c GROUP BY c.fecha_comentario, c.id_usuario, c.id_juego HAVING count(*) > 1;);    --FECHA COMENTARIO HACER EXTRACT DE ANIO, DIA y MES
+--ALTER TABLE GR20_comentario ADD CONSTRAINT ck_g20_comentario_por_dia CHECK NOT EXISTS(
+--    SELECT c.id_usuario FROM GR20_comentario c GROUP BY c.fecha_comentario, c.id_usuario, c.id_juego HAVING count(*) > 1;);
 --c)
-CREATE ASSERTION ck_g20_recomendar_sin_votar
-CHECK NOT EXISTS(SELECT 1 FROM gr20_recomendacion r WHERE NOT EXISTS (
-            SELECT 1 FROM gr20_voto v WHERE v.id_usuario = r.id_usuario and v.id_juego = r.id_juego)); --BIEN trae todos los que recomendaron y no votaron
+--CREATE ASSERTION ck_g20_recomendar_sin_votar
+--CHECK NOT EXISTS(SELECT 1 FROM gr20_recomendacion r WHERE NOT EXISTS (
+--            SELECT 1 FROM gr20_voto v WHERE v.id_usuario = r.id_usuario and v.id_juego = r.id_juego)); --BIEN trae todos los que recomendaron y no votaron
 --d)
-CREATE ASSERTION ck_g20_comentar_sin_jugar
-CHECK NOT EXISTS(SELECT 1 FROM gr20_comenta c WHERE NOT EXISTS (
-            SELECT 1 FROM gr20_juega j WHERE c.id_usuario = j.id_usuario and c.id_juego = j.id_juego)); --BIEN trae todos los que comentan y no jugaron
-
-
+--CREATE ASSERTION ck_g20_comentar_sin_jugar
+--CHECK NOT EXISTS(SELECT 1 FROM gr20_comenta c WHERE NOT EXISTS (
+--            SELECT 1 FROM gr20_juega j WHERE c.id_usuario = j.id_usuario and c.id_juego = j.id_juego)); --BIEN trae todos los que comentan y no jugaron
 
 --2) (TRIGGERS)
 --b)
-
-CREATE TRIGGER TR_GR20_GR20_GR20_comentario_unico_comentario_diario
-    BEFORE INSERT OR UPDATE OF id_juego, id_usuario, fecha_comentario
-    ON gr20_comentario
-    FOR EACH ROW
-    EXECUTE PROCEDURE TRFN_GR20_comentario_unico_comentario_diario();
 
 CREATE OR REPLACE FUNCTION TRFN_GR20_comentario_unico_comentario_diario()
 RETURNS TRIGGER AS $body$
@@ -42,19 +33,15 @@ DECLARE contador integer;
     END$body$
     LANGUAGE 'plpgsql';
 
-
+CREATE TRIGGER TR_GR20_GR20_GR20_comentario_unico_comentario_diario
+    BEFORE INSERT OR UPDATE OF id_juego, id_usuario, fecha_comentario
+    ON gr20_comentario
+    FOR EACH ROW
+    EXECUTE PROCEDURE TRFN_GR20_comentario_unico_comentario_diario();
 
 
 
 --c)
-
-
-CREATE TRIGGER TR_GR20_GR20_GR20_recomendacion_recomendar_sin_votar
-    BEFORE INSERT OR UPDATE OF id_juego, id_usuario
-    ON gr20_recomendacion
-    FOR EACH ROW
-    EXECUTE PROCEDURE TRFN_GR20_recomendar_sin_votar();
-
 CREATE OR REPLACE FUNCTION TRFN_GR20_recomendar_sin_votar()
 RETURNS TRIGGER AS $body$
 DECLARE contador integer;
@@ -68,15 +55,16 @@ DECLARE contador integer;
         END$body$
     LANGUAGE 'plpgsql';
 
+CREATE TRIGGER TR_GR20_GR20_GR20_recomendacion_recomendar_sin_votar
+    BEFORE INSERT OR UPDATE OF id_juego, id_usuario
+    ON gr20_recomendacion
+    FOR EACH ROW
+    EXECUTE PROCEDURE TRFN_GR20_recomendar_sin_votar();
+
+
+
 
 --d)
-
-CREATE TRIGGER TR_GR20_GR20_GR20_comenta_comentar_sin_jugar
-    BEFORE INSERT OR UPDATE OF id_juego, id_usuario
-    ON gr20_comenta
-    FOR EACH ROW
-    EXECUTE PROCEDURE TRFN_GR20_comentar_sin_jugar();
-
 CREATE OR REPLACE FUNCTION TRFN_GR20_comentar_sin_jugar()
 RETURNS TRIGGER AS $body$
 DECLARE contador integer;
@@ -89,6 +77,14 @@ DECLARE contador integer;
         return new;
         END$body$
     LANGUAGE 'plpgsql';
+
+CREATE TRIGGER TR_GR20_GR20_GR20_comenta_comentar_sin_jugar
+    BEFORE INSERT OR UPDATE OF id_juego, id_usuario
+    ON gr20_comenta
+    FOR EACH ROW
+    EXECUTE PROCEDURE TRFN_GR20_comentar_sin_jugar();
+
+
 
 --SERVICIOS
 --3)
@@ -107,7 +103,6 @@ RETURNS TRIGGER AS $body$
                         RETURN NEW;
                     END IF;
             END IF;
-
     END$body$
     LANGUAGE 'plpgsql';
 
@@ -124,9 +119,15 @@ CREATE TRIGGER TR_GR20_GR20_GR20_comentario_sincro_comenta_comentario
 CREATE OR REPLACE FUNCTION TRFN_GR20_sincro_comenta_comentario_after()
 RETURNS TRIGGER AS $body$
     DECLARE  fecha timestamp;
+    DECLARE  fecha2 timestamp;
         BEGIN
         IF (TG_OP='DELETE') THEN
             SELECT fecha_comentario INTO fecha FROM gr20_comentario c WHERE OLD.id_usuario = c.id_usuario and OLD.id_juego = c.id_juego ORDER BY fecha_comentario DESC LIMIT 1;
+            SELECT fecha_primer_com INTO fecha2 FROM gr20_comenta c WHERE c.id_juego = OLD.id_juego and c.id_usuario = OLD.id_usuario;
+            IF(fecha = fecha2) THEN
+                UPDATE GR20_comenta c SET fecha_ultimo_com = null WHERE c.id_usuario = OLD.id_usuario AND c.id_juego = OLD.id_juego;
+                RETURN OLD;
+            END IF;
             UPDATE GR20_comenta c SET fecha_ultimo_com = fecha WHERE c.id_usuario = OLD.id_usuario AND c.id_juego = OLD.id_juego;
             RETURN OLD;
         END IF;
@@ -144,8 +145,6 @@ CREATE TRIGGER TR_GR20_GR20_GR20_comentario_sincro_comenta_comentario_after
     ON gr20_comentario
     FOR EACH ROW
     EXECUTE PROCEDURE TRFN_GR20_sincro_comenta_comentario_after();
-
-
 
 
 --VISTAS
@@ -170,5 +169,5 @@ SELECT j.*, AVG(v.valor_voto) as valoracion FROM GR20_JUEGO j JOIN GR20_VOTO v O
 GROUP BY (V.id_juego,j.id_juego) HAVING count(DISTINCT id_voto) > 5 ORDER BY valoracion DESC LIMIT 20;
 
 SELECT * FROM GR20_top_juegos;
-
 --FIN
+

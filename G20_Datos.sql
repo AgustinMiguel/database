@@ -74,3 +74,25 @@ INSERT INTO "gr20_recomendacion" (id_recomendacion,email_recomendado,id_usuario,
 INSERT INTO "gr20_recomendacion" (id_recomendacion,email_recomendado,id_usuario,id_juego) VALUES (4,'quam a',10,5);
 INSERT INTO "gr20_recomendacion" (id_recomendacion,email_recomendado,id_usuario,id_juego) VALUES (5,'Curabitur sed',11,3);
 INSERT INTO "gr20_recomendacion" (id_recomendacion,email_recomendado,id_usuario,id_juego) VALUES (6,'vulputate, risus',9,1);
+
+
+--TEST RESTRICCIONES Y TRIGGERS
+
+--TEST 1A) FECHA PRIMER COMENTARIO MENOR A FECHA ULTIMO COMENTARIO
+INSERT INTO gr20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_com) VALUES (2,2,'2003-04-12 04:05:06','2002-04-12 04:05:06');
+--TEST 1B) TRIGGER UNICO COMENTARIO DIARIO
+INSERT INTO "gr20_comentario" (id_usuario,id_juego,id_comentario,fecha_comentario,comentario) VALUES (5,6,6,'09-08-19','test unico comentario diario por juego');
+INSERT INTO "gr20_comentario" (id_usuario,id_juego,id_comentario,fecha_comentario,comentario) VALUES (5,6,7,'09-08-19','test unico comentario diario por juego');
+--TEST 1C) TRIGGER RECOMENDAR SIN VOTAR
+INSERT INTO gr20_recomendacion(id_recomendacion, email_recomendado, id_usuario, id_juego) VALUES (7,'aa',2,2);
+--TEST 1D) TRIGGER COMENTAR UN JUEGO QUE NO AH JUGADO
+INSERT INTO gr20_comenta(id_usuario, id_juego, fecha_primer_com, fecha_ultimo_com) VALUES (1,1,'09-08-19',null);
+--TEST SERVICIOS
+SELECT * FROM gr20_comenta;
+INSERT INTO gr20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario) VALUES (2,2,7,'09-08-19','test trigger');
+SELECT * FROM gr20_comenta;
+INSERT INTO gr20_comentario(id_usuario, id_juego, id_comentario, fecha_comentario, comentario) VALUES (2,2,8,'10-08-27','test trigger');
+SELECT * FROM gr20_comenta;
+DELETE FROM gr20_comentario WHERE id_comentario = 8;
+SELECT * FROM gr20_comenta;
+--FIN
